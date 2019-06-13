@@ -1,3 +1,6 @@
+copied from https://github.com/fxsjy/jieba
+
+
 jieba
 ========
 “结巴”中文分词：做最好的 Python 中文分词组件
