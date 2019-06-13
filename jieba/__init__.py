@@ -34,7 +34,8 @@ DICT_WRITING = {}
 
 pool = None
 
-re_userdict = re.compile('^(.+?)( [0-9]+)?( [a-z]+)?$', re.U)
+re_userdict = re.compile('^(.+?)( [0-9]+)?( [a-z]+)?( .+)?$', re.U)
+# re_userdict = re.compile('^(.+?)( [0-9]+)?( [a-z]+)?$', re.U)
 
 re_eng = re.compile('[a-zA-Z0-9]', re.U)
 
@@ -63,6 +64,7 @@ class Tokenizer(object):
         self.FREQ = {}
         self.total = 0
         self.user_word_tag_tab = {}
+        self.user_word_translate_tab = {}
         self.initialized = False
         self.tmp_dir = None
         self.cache_file = None
@@ -387,14 +389,21 @@ class Tokenizer(object):
             if not line:
                 continue
             # match won't be None because there's at least one character
-            word, freq, tag = re_userdict.match(line).groups()
+            word, freq, tag, translate = re_userdict.match(line).groups()
             if freq is not None:
                 freq = freq.strip()
             if tag is not None:
                 tag = tag.strip()
-            self.add_word(word, freq, tag)
+            if translate is not None:
+                translate = translate.strip()
+            
+            # print(word)
+            # print(freq)
+            # print(tag)
+            # print(translate)
+            self.add_word(word, freq, tag, translate)
 
-    def add_word(self, word, freq=None, tag=None):
+    def add_word(self, word, freq=None, tag=None, translate=None):
         """
         Add a word to dictionary.
 
@@ -408,6 +417,7 @@ class Tokenizer(object):
         self.total += freq
         if tag:
             self.user_word_tag_tab[word] = tag
+            self.user_word_translate_tab[word] = translate
         for ch in xrange(len(word)):
             wfrag = word[:ch + 1]
             if wfrag not in self.FREQ:
@@ -516,6 +526,7 @@ set_dictionary = dt.set_dictionary
 suggest_freq = dt.suggest_freq
 tokenize = dt.tokenize
 user_word_tag_tab = dt.user_word_tag_tab
+user_word_translate_tab = dt.user_word_translate_tab
 
 
 def _lcut_all(s):

@@ -43,9 +43,10 @@ else:
 
 class pair(object):
 
-    def __init__(self, word, flag):
+    def __init__(self, word, flag, translate=None):
         self.word = word
         self.flag = flag
+        self.translate = translate
 
     def __unicode__(self):
         return '%s/%s' % (self.word, self.flag)
@@ -96,14 +97,18 @@ class POSTokenizer(object):
 
     def load_word_tag(self, f):
         self.word_tag_tab = {}
+        self.word_trans_tab = {}
         f_name = resolve_filename(f)
         for lineno, line in enumerate(f, 1):
             try:
                 line = line.strip().decode("utf-8")
                 if not line:
                     continue
-                word, _, tag = line.split(" ")
+                word, _, tag, *translate = line.split(" ")
+
                 self.word_tag_tab[word] = tag
+                if translate:
+                    self.word_trans_tab[word] = translate[0]
             except Exception:
                 raise ValueError(
                     'invalid POS dictionary entry in %s at Line %s: %s' % (f_name, lineno, line))
@@ -112,7 +117,9 @@ class POSTokenizer(object):
     def makesure_userdict_loaded(self):
         if self.tokenizer.user_word_tag_tab:
             self.word_tag_tab.update(self.tokenizer.user_word_tag_tab)
+            self.word_trans_tab.update(self.tokenizer.user_word_translate_tab)
             self.tokenizer.user_word_tag_tab = {}
+            self.tokenizer.user_word_translate_tab = {}
 
     def __cut(self, sentence):
         prob, pos_list = viterbi(
@@ -124,13 +131,13 @@ class POSTokenizer(object):
             if pos == 'B':
                 begin = i
             elif pos == 'E':
-                yield pair(sentence[begin:i + 1], pos_list[i][1])
+                yield pair(sentence[begin:i + 1], pos_list[i][1], self.word_trans_tab.get(sentence[begin:i + 1], sentence[begin:i + 1]))
                 nexti = i + 1
             elif pos == 'S':
-                yield pair(char, pos_list[i][1])
+                yield pair(char, pos_list[i][1], self.word_trans_tab.get(char, char))
                 nexti = i + 1
         if nexti < len(sentence):
-            yield pair(sentence[nexti:], pos_list[nexti][1])
+            yield pair(sentence[nexti:], pos_list[nexti][1], self.word_trans_tab.get(sentence[nexti:], sentence[nexti:]))
 
     def __cut_detail(self, sentence):
         blocks = re_han_detail.split(sentence)
@@ -166,7 +173,7 @@ class POSTokenizer(object):
                 if buf:
                     yield pair(buf, 'eng')
                     buf = ''
-                yield pair(l_word, self.word_tag_tab.get(l_word, 'x'))
+                yield pair(l_word, self.word_tag_tab.get(l_word, 'x'), self.word_trans_tab.get(l_word, l_word))
                 x = y
         if buf:
             yield pair(buf, 'eng')
@@ -189,28 +196,29 @@ class POSTokenizer(object):
             else:
                 if buf:
                     if len(buf) == 1:
-                        yield pair(buf, self.word_tag_tab.get(buf, 'x'))
+                        yield pair(buf, self.word_tag_tab.get(buf, 'x'), self.word_trans_tab.get(buf, buf))
                     elif not self.tokenizer.FREQ.get(buf):
                         recognized = self.__cut_detail(buf)
                         for t in recognized:
                             yield t
                     else:
                         for elem in buf:
-                            yield pair(elem, self.word_tag_tab.get(elem, 'x'))
+                            yield pair(elem, self.word_tag_tab.get(elem, 'x'), self.word_trans_tab.get(elm, elm))
                     buf = ''
-                yield pair(l_word, self.word_tag_tab.get(l_word, 'x'))
+                yield pair(l_word, self.word_tag_tab.get(l_word, 'x'), self.word_trans_tab.get(l_word, l_word))
             x = y
 
         if buf:
             if len(buf) == 1:
-                yield pair(buf, self.word_tag_tab.get(buf, 'x'))
+                yield pair(buf, self.word_tag_tab.get(buf, 'x'), self.word_trans_tab.get(buf, buf))
             elif not self.tokenizer.FREQ.get(buf):
                 recognized = self.__cut_detail(buf)
                 for t in recognized:
                     yield t
             else:
+                print("else:")
                 for elem in buf:
-                    yield pair(elem, self.word_tag_tab.get(elem, 'x'))
+                    yield pair(elem, self.word_tag_tab.get(elem, 'x'), self.word_trans_tab.get(elm, elm))
 
     def __cut_internal(self, sentence, HMM=True):
         self.makesure_userdict_loaded()
